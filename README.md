@@ -26,7 +26,7 @@ This script automatically enables meeting recording settings in Google Calendar/
 #### Step 2: Install the Script
 1. Click the Violentmonkey icon in your browser
 2. Click the "+" button to create a new script
-3. Copy the entire content from `index.js`
+3. Copy the entire content from `index.js` (if doesn't work use index-v2.js)
 4. Paste it into the editor
 5. Click "Save" (Ctrl+S)
 
@@ -75,7 +75,7 @@ If the script doesn't work:
 #### 第二步：安装脚本
 1. 点击浏览器中的 Violentmonkey 图标
 2. 点击"+"按钮创建新脚本
-3. 复制 `index.js` 中的所有内容
+3. 复制 `index.js` 中的所有内容 (如果不能用可以切换到index-v2.js)
 4. 粘贴到编辑器中
 5. 点击保存（Ctrl+S）
 
