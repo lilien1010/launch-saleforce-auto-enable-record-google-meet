@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Auto Enable Record for Saleloft Meeting
+// @name         Auto Enable Record for Saleloft Meeting V2
 // @namespace    your-namespace
 // @version      1.0
 // @description  When detect Edit alternative logging selections auto click Video call options and enable record
@@ -10,115 +10,94 @@
 // ==/UserScript==
 
 (function() {
-    // 创建通用的DOM观察器
-    function createObserver(targetSelector, callback, config = { childList: true, subtree: true }) {
-        const observer = new MutationObserver((mutations, obs) => {
-            const element = targetSelector();
-            if (element) {
-                callback(element);
-                obs.disconnect();
-            }
-        });
 
-        observer.observe(document.body, config);
-        return observer;
-    }
+    let timerOpenIframe = null;
+    let timerToPanel = null;
+    let timerClickEnable = null;
 
-    // 通用的按钮查找函数
-    function findButton(buttonLabel) {
-        return Array.from(document.querySelectorAll('button')).find(button =>
+    function findAndClickButton(buttonLabel, preTimer, callback = null) {
+        const videoOptionsButton = Array.from(document.querySelectorAll('button')).find(button =>
             button.getAttribute('aria-label') === buttonLabel
         );
-    }
 
-    // 点击按钮并执行回调的通用函数
-    function clickButton(button, callback = null) {
-        setTimeout(() => {
-            button.click();
-            console.log(`Clicked button: ${button.getAttribute('aria-label')}`);
-            if (callback) callback();
-        }, 10);
-    }
-
-    // 主页面配置功能
-    function setupMainPageConfig() {
-        // 监听 "Edit alternative logging selections" 按钮的存在性
-        createObserver(
-            () => {
-                const editButton = findButton('Edit alternative logging selections');
-                const videoOptionsButton = findButton('Video call options');
-                // 只有当两个按钮都存在时才返回 videoOptionsButton
-                return editButton && videoOptionsButton ? videoOptionsButton : null;
-            },
-            (videoButton) => {
-                console.log('Found "Edit alternative logging selections", clicking "Video call options"');
-                clickButton(videoButton);
+        if (videoOptionsButton) {
+            if (preTimer) {
+                setTimeout(() => {
+                    videoOptionsButton.click();
+                    console.log(buttonLabel, " Button clicked");
+                }, 1);
+                clearInterval(preTimer)
             }
-        );
+            if (callback) {
+                callback(videoOptionsButton)
+            }
+        }
     }
 
-    // 设置页面的自动化配置
-    function setupSettingsPageConfig() {
+
+    const funcToOpenConfigPage = () => {
+        // as long as found salesloft conect button then we auto enable record
+        findAndClickButton('Edit alternative logging selections', null, () => {
+            console.log('find salesloft enabled')
+            findAndClickButton('Video call options', timerOpenIframe)
+        });
+
+        console.log('funcToOpenConfigPage ');
+    }
+
+
+    const funcToToggleEnableAuthRecords = () => {
+        // find the record the meeting label to enable
+        const label = Array.from(document.querySelectorAll('input')).find(button => {
+            return button.getAttribute('aria-label') === "Starts recording audio and video of the meeting for later playback when someone who has the right to record joins the meeting. The recording will be stored in the organizer's Google Drive.";
+        });
+        console.log('funcToToggleEnableAuthRecords', label.checked);
+        if (label && !label.checked) {
+            setTimeout(() => {
+                label.click()
+            }, 10)
+            setTimeout(() => {
+                const saveBtn = Array.from(document.querySelectorAll('span')).find(button => {
+                    return button.textContent === 'Save';
+                });
+
+                const saveBtnReal = saveBtn?.closest('div')?.querySelector('button')
+                console.log('funcToToggleEnableAuthRecords saveBtnReal ', saveBtnReal);
+                console.log('funcToToggleEnableAuthRecords saveBtn ', saveBtn);
+                if (saveBtnReal) {
+                    setTimeout(() => {
+                        saveBtnReal.click()
+                        sessionStorage.setItem('settedByBot', new Date().getTime())
+                    }, 10)
+                    clearInterval(timerClickEnable)
+                }
+            }, 100)
+        }
+    }
+
+    const funcToOpenEnablePannel = () => {
+        // click to open the Meeting records pannel
         const lastClick = sessionStorage.getItem("settedByBot");
-        if (lastClick && new Date().getTime() - lastClick < 60000) {
-            console.log('Configuration was recently completed, skipping...');
+        if (lastClick && new Date().getTime() - lastClick < 1 * 60 * 1000) {
+            console.log('second round of config,skip', lastClick);
+            clearInterval(timerToPanel);
             return;
         }
-
-        // 监听并点击 "Meeting records" 按钮
-        createObserver(
-            () => findButton('Meeting records'),
-            (button) => {
-                clickButton(button, setupRecordingToggle);
-            }
-        );
+        findAndClickButton('Meeting records', timerToPanel, (meetingPanel) => {
+            console.log('funcToOpenEnablePannel', meetingPanel);
+            timerClickEnable = setInterval(funcToToggleEnableAuthRecords, 500)
+        })
     }
 
-    // 配置录制选项
-    function setupRecordingToggle() {
-        // 监听录制选项复选框
-        createObserver(
-            () => {
-                return Array.from(document.querySelectorAll('input')).find(input =>
-                    input.getAttribute('aria-label')?.includes('Starts recording audio and video of the meeting')
-                );
-            },
-            (checkbox) => {
-                if (!checkbox.checked) {
-                    clickButton(checkbox, setupSaveButton);
-                }
-            }
-        );
+    if (document.URL.includes('calendarsettings')) {
+        // enter to iframe of setting page
+        timerToPanel = setInterval(funcToOpenEnablePannel, 1000)
+    } else {
+        // enter the main page keep checking
+        timerOpenIframe = setInterval(funcToOpenConfigPage, 3000)
     }
 
-    // 设置保存按钮
-    function setupSaveButton() {
-        // 监听并点击保存按钮
-        createObserver(
-            () => {
-                const saveSpan = Array.from(document.querySelectorAll('span'))
-                    .find(span => span.textContent === 'Save');
-                return saveSpan?.closest('div')?.querySelector('button');
-            },
-            (saveButton) => {
-                clickButton(saveButton, () => {
-                    sessionStorage.setItem('settedByBot', new Date().getTime());
-                    console.log('Configuration saved successfully');
-                });
-            }
-        );
-    }
 
-    // 主入口：根据URL决定执行哪个配置流程
-    function init() {
-        console.log("Script initialized on:", document.URL);
-        if (document.URL.includes('calendarsettings')) {
-            setupSettingsPageConfig();
-        } else {
-            setupMainPageConfig();
-        }
-    }
 
-    // 启动脚本
-    init();
-})();
+    console.log("inject to iframe", document.URL)
+})()
