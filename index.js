@@ -10,51 +10,67 @@
 // ==/UserScript==
 
 (function() {
-    // 创建通用的DOM观察器
-    function createObserver(targetSelector, callback, config = { childList: true, subtree: true }) {
-        const observer = new MutationObserver((mutations, obs) => {
-            const element = targetSelector();
-            if (element) {
-                callback(element);
-                obs.disconnect();
-            }
-        });
-
-        observer.observe(document.body, config);
-        return observer;
-    }
-
     // 通用的按钮查找函数
     function findButton(buttonLabel) {
-        return Array.from(document.querySelectorAll('button')).find(button =>
+        const button = Array.from(document.querySelectorAll('button')).find(button =>
             button.getAttribute('aria-label') === buttonLabel
         );
+        if (button) {
+            console.log(`Found button: ${buttonLabel}`);
+        }
+        return button;
     }
 
     // 点击按钮并执行回调的通用函数
     function clickButton(button, callback = null) {
+        if (!button) {
+            console.error('Attempted to click null button');
+            return;
+        }
+
         setTimeout(() => {
-            button.click();
-            console.log(`Clicked button: ${button.getAttribute('aria-label')}`);
-            if (callback) callback();
-        }, 10);
+            try {
+                button.click();
+                console.log(`Clicked button: ${button.getAttribute('aria-label')}`);
+                if (callback) {
+                    setTimeout(callback, 100); // 延迟执行回调
+                }
+            } catch (error) {
+                console.error('Error clicking button:', error);
+            }
+        }, 100);
     }
 
     // 主页面配置功能
     function setupMainPageConfig() {
-        // 监听 "Edit alternative logging selections" 按钮的存在性
-        createObserver(
-            () => {
-                const editButton = findButton('Edit alternative logging selections');
-                const videoOptionsButton = findButton('Video call options');
-                // 只有当两个按钮都存在时才返回 videoOptionsButton
-                return editButton && videoOptionsButton ? videoOptionsButton : null;
-            },
-            (videoButton) => {
-                console.log('Found "Edit alternative logging selections", clicking "Video call options"');
-                clickButton(videoButton);
+        let editButtonFound = false;
+        console.log('Setting up main page config...');
+
+        const observer = new MutationObserver((mutations) => {
+            const editButton = findButton('Edit alternative logging selections');
+            const videoOptionsButton = findButton('Video call options');
+
+            if (editButton && !editButtonFound) {
+                editButtonFound = true;
+                console.log('Found "Edit alternative logging selections", checking for Video call options');
+
+                if (videoOptionsButton) {
+                    console.log('Found "Video call options", proceeding to click');
+                    clickButton(videoOptionsButton);
+                    observer.disconnect();
+                    console.log('Observer disconnected after finding both buttons');
+                }
             }
-        );
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['aria-label']
+        });
+
+        console.log('Main page observer started');
     }
 
     // 设置页面的自动化配置
@@ -65,57 +81,68 @@
             return;
         }
 
-        // 监听并点击 "Meeting records" 按钮
-        createObserver(
-            () => findButton('Meeting records'),
-            (button) => {
-                clickButton(button, setupRecordingToggle);
+        console.log('Setting up settings page config...');
+        const observer = new MutationObserver((mutations) => {
+            const meetingRecordsButton = findButton('Meeting records');
+            if (meetingRecordsButton) {
+                observer.disconnect();
+                clickButton(meetingRecordsButton, ()=>{
+                  setTimeout(setupRecordingToggle,20)
+                });
             }
-        );
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['aria-label']
+        });
     }
 
     // 配置录制选项
     function setupRecordingToggle() {
-        // 监听录制选项复选框
-        createObserver(
-            () => {
-                return Array.from(document.querySelectorAll('input')).find(input =>
-                    input.getAttribute('aria-label')?.includes('Starts recording audio and video of the meeting')
-                );
-            },
-            (checkbox) => {
-                if (!checkbox.checked) {
-                    clickButton(checkbox, setupSaveButton);
-                }
-            }
+        const checkbox = Array.from(document.querySelectorAll('input')).find(input =>
+            input.getAttribute('aria-label')?.includes('Starts recording audio and video of the meeting')
         );
+        console.log('Setting up recording toggle...,',checkbox);
+        if (checkbox) {
+            console.log('Found recording checkbox, checked:', checkbox.checked);
+            if (!checkbox.checked) {
+                clickButton(checkbox, setupSaveButton);
+            }
+        }
+
     }
 
     // 设置保存按钮
     function setupSaveButton() {
-        // 监听并点击保存按钮
-        createObserver(
-            () => {
-                const saveSpan = Array.from(document.querySelectorAll('span'))
-                    .find(span => span.textContent === 'Save');
-                return saveSpan?.closest('div')?.querySelector('button');
-            },
-            (saveButton) => {
+        console.log('Setting up save button...');
+            const saveSpan = Array.from(document.querySelectorAll('span'))
+                .find(span => span.textContent === 'Save');
+            const saveButton = saveSpan?.closest('div')?.querySelector('button');
+
+            if (saveButton) {
                 clickButton(saveButton, () => {
                     sessionStorage.setItem('settedByBot', new Date().getTime());
                     console.log('Configuration saved successfully');
                 });
             }
-        );
     }
 
     // 主入口：根据URL决定执行哪个配置流程
     function init() {
         console.log("Script initialized on:", document.URL);
-        if (document.URL.includes('calendarsettings')) {
-            setupSettingsPageConfig();
-        } else {
-            setupMainPageConfig();
+
+        // 添加错误处理
+        try {
+            if (document.URL.includes('calendarsettings')) {
+                setupSettingsPageConfig();
+            } else {
+                setupMainPageConfig();
+            }
+        } catch (error) {
+            console.error('Error during initialization:', error);
         }
     }
 
