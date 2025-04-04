@@ -49,6 +49,7 @@
         const observer = new MutationObserver((mutations) => {
             const editButton = findButton('Edit alternative logging selections');
             const videoOptionsButton = findButton('Video call options');
+            console.log('main page edited',editButtonFound)
 
             if (editButton && !editButtonFound) {
                 editButtonFound = true;
@@ -75,12 +76,6 @@
 
     // 设置页面的自动化配置
     function setupSettingsPageConfig() {
-        const lastClick = sessionStorage.getItem("settedByBot");
-        if (lastClick && new Date().getTime() - lastClick < 60000) {
-            console.log('Configuration was recently completed, skipping...');
-            return;
-        }
-
         console.log('Setting up settings page config...');
         const observer = new MutationObserver((mutations) => {
             const meetingRecordsButton = findButton('Meeting records');
@@ -103,7 +98,7 @@
     // 配置录制选项
     function setupRecordingToggle() {
         const checkbox = Array.from(document.querySelectorAll('input')).find(input =>
-            input.getAttribute('aria-label')?.includes('Starts recording audio and video of the meeting')
+            input.getAttribute('aria-label')?.includes('Record the meeting')
         );
         console.log('Setting up recording toggle...,',checkbox);
         if (checkbox) {
@@ -124,7 +119,6 @@
 
             if (saveButton) {
                 clickButton(saveButton, () => {
-                    sessionStorage.setItem('settedByBot', new Date().getTime());
                     console.log('Configuration saved successfully');
                 });
             }
