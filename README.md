@@ -6,7 +6,8 @@
 ### Introduction
 This script automatically enables meeting recording settings in Google Calendar/Meet. It helps users automatically configure recording settings when creating meetings 
 
-### ❗ONLY for Salesloft Meetings❗ And Have to Install Salesloft Chrome extension too
+### ❗ONLY for Salesloft Meetings❗ 
+And Have to Install [Salesloft Chrome extension](https://chromewebstore.google.com/detail/salesloft-connect/ejgmneenioanldgngdomlfnbcbffmchf)
 
 ### Features
 - Automatically detects and clicks the "Video call options" button when available
