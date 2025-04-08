@@ -52,10 +52,10 @@
             console.log('main page edited',editButtonFound)
 
             if (editButton && !editButtonFound) {
-                editButtonFound = true;
                 console.log('Found "Edit alternative logging selections", checking for Video call options');
 
                 if (videoOptionsButton) {
+                    editButtonFound = true;
                     console.log('Found "Video call options", proceeding to click');
                     clickButton(videoOptionsButton);
                     observer.disconnect();
