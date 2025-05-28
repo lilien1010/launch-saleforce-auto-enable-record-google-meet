@@ -10,10 +10,10 @@
 // ==/UserScript==
 
 (function() {
-    // 通用的按钮查找函数
-    function findButton(buttonLabel) {
-        const button = Array.from(document.querySelectorAll('button')).find(button =>
-            button.getAttribute('aria-label') === buttonLabel
+    // Generic button finding function
+    function findButton(buttonLabel,element = 'button',field = 'aria-label') {
+        const button = Array.from(document.querySelectorAll(element)).find(button =>
+            button.getAttribute(field)?.includes(buttonLabel)
         );
         if (button) {
             console.log(`Found button: ${buttonLabel}`);
@@ -21,7 +21,7 @@
         return button;
     }
 
-    // 点击按钮并执行回调的通用函数
+    // Generic function to click button and execute callback
     function clickButton(button, callback = null) {
         if (!button) {
             console.error('Attempted to click null button');
@@ -33,7 +33,7 @@
                 button.click();
                 console.log(`Clicked button: ${button.getAttribute('aria-label')}`);
                 if (callback) {
-                    setTimeout(callback, 100); // 延迟执行回调
+                    setTimeout(callback, 100); // Delay callback execution
                 }
             } catch (error) {
                 console.error('Error clicking button:', error);
@@ -41,25 +41,46 @@
         }, 100);
     }
 
-    // 主页面配置功能
+    // Main page configuration functionality
     function setupMainPageConfig() {
         let editButtonFound = false;
         console.log('Setting up main page config...');
 
         const observer = new MutationObserver((mutations) => {
-            const editButton = findButton('Edit alternative logging selections');
-            const videoOptionsButton = findButton('Video call options');
-            console.log('main page edited',editButtonFound)
+            // 1. Find div aria-label = "Guests invited to this event"
+            const guestsDiv = findButton('Guests invited to this event', 'div', 'aria-label');
+            console.log('main page edited, guestsDiv found:', guestsDiv);
 
-            if (editButton && !editButtonFound) {
-                console.log('Found "Edit alternative logging selections", checking for Video call options');
+            if (guestsDiv && !editButtonFound) {
+                console.log('Found "Guests invited to this event", checking child divs for data-email');
+                
+                // Check child div data-email attributes
+                const childDivs = guestsDiv.querySelectorAll('div[data-email]');
+                let hasNonShopifyEmail = false;
+                
+                childDivs.forEach(childDiv => {
+                    const email = childDiv.getAttribute('data-email');
+                    console.log('Checking email:', email);
+                    if (email && !email.includes('shopify.com')) {
+                        hasNonShopifyEmail = true;
+                        console.log('Found non-shopify.com email, will not proceed with video options');
+                    }
+                });
 
-                if (videoOptionsButton) {
-                    editButtonFound = true;
-                    console.log('Found "Video call options", proceeding to click');
-                    clickButton(videoOptionsButton);
-                    observer.disconnect();
-                    console.log('Observer disconnected after finding both buttons');
+                // Only continue if no shopify.com emails are found
+                if (hasNonShopifyEmail) {
+                    console.log('Some non-shopify.com emails found, checking for Video call options');
+                    const videoOptionsButton = findButton('Video call options');
+                    
+                    if (videoOptionsButton) {
+                        editButtonFound = true;
+                        console.log('Found "Video call options", proceeding to click');
+                        clickButton(videoOptionsButton);
+                        observer.disconnect();
+                        console.log('Observer disconnected after finding both conditions met');
+                    }
+                } else {
+                    console.log('Shopify.com email detected, skipping video options setup');
                 }
             }
         });
@@ -68,13 +89,13 @@
             childList: true,
             subtree: true,
             attributes: true,
-            attributeFilter: ['aria-label']
+            attributeFilter: ['aria-label', 'data-email']
         });
 
         console.log('Main page observer started');
     }
 
-    // 设置页面的自动化配置
+    // Settings page automation configuration
     function setupSettingsPageConfig() {
         console.log('Setting up settings page config...');
         const observer = new MutationObserver((mutations) => {
@@ -95,7 +116,7 @@
         });
     }
 
-    // 配置录制选项
+    // Configure recording options
     function setupRecordingToggle() {
         const checkbox = Array.from(document.querySelectorAll('input')).find(input =>
             input.getAttribute('aria-label')?.includes('Record the meeting')
@@ -110,7 +131,7 @@
 
     }
 
-    // 设置保存按钮
+    // Setup save button
     function setupSaveButton() {
         console.log('Setting up save button...');
             const saveSpan = Array.from(document.querySelectorAll('span'))
@@ -124,11 +145,11 @@
             }
     }
 
-    // 主入口：根据URL决定执行哪个配置流程
+    // Main entry point: decide which configuration flow to execute based on URL
     function init() {
         console.log("Script initialized on:", document.URL);
 
-        // 添加错误处理
+        // Add error handling
         try {
             if (document.URL.includes('calendarsettings')) {
                 setupSettingsPageConfig();
@@ -140,6 +161,6 @@
         }
     }
 
-    // 启动脚本
+    // Start the script
     init();
 })();
